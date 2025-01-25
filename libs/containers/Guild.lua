@@ -16,6 +16,8 @@ local Resolver = require('client/Resolver')
 local AuditLogEntry = require('containers/AuditLogEntry')
 local GuildTextChannel = require('containers/GuildTextChannel')
 local GuildVoiceChannel = require('containers/GuildVoiceChannel')
+local GuildForumChannel = require('containers/GuildForumChannel')
+local GuildThreadChannel = require('containers/GuildThreadChannel')
 local GuildCategoryChannel = require('containers/GuildCategoryChannel')
 local Snowflake = require('containers/abstract/Snowflake')
 
@@ -36,6 +38,8 @@ function Guild:__init(data, parent)
 	self._members = Cache({}, Member, self)
 	self._text_channels = Cache({}, GuildTextChannel, self)
 	self._voice_channels = Cache({}, GuildVoiceChannel, self)
+	self._forum_channels = Cache({}, GuildForumChannel, self)
+	self._thread_channels = Cache({}, GuildThreadChannel)
 	self._categories = Cache({}, GuildCategoryChannel, self)
 	self._voice_states = {}
 	if not data.unavailable then
@@ -70,6 +74,7 @@ function Guild:_makeAvailable(data)
 
 	local text_channels = self._text_channels
 	local voice_channels = self._voice_channels
+	local forum_channels = self._forum_channels
 	local categories = self._categories
 
 	for _, channel in ipairs(data.channels) do
@@ -78,10 +83,14 @@ function Guild:_makeAvailable(data)
 			text_channels:_insert(channel)
 		elseif t == channelType.voice then
 			voice_channels:_insert(channel)
+		elseif t == channelType.forum then
+			forum_channels:_insert(channel)
 		elseif t == channelType.category then
 			categories:_insert(channel)
 		end
 	end
+
+	self:_loadThreads(data)
 
 	return self:_loadMembers(data)
 
@@ -98,6 +107,17 @@ function Guild:_loadMembers(data)
 	end
 	if self._large and self.client._options.cacheAllMembers then
 		return self:requestMembers()
+	end
+end
+
+function Guild:_loadThreads(data)
+	if data.threads then
+		for _, thread in ipairs(data.threads) do
+			local parent = self:getChannel(thread.parent_id)
+			if parent then
+				parent._thread_channels:_insert(thread, parent)
+			end
+		end
 	end
 end
 
@@ -219,7 +239,7 @@ end
 ]=]
 function Guild:getChannel(id)
 	id = Resolver.channelId(id)
-	return self._text_channels:get(id) or self._voice_channels:get(id) or self._categories:get(id)
+	return self._text_channels:get(id) or self._voice_channels:get(id) or self._forum_channels:get(id) or self._thread_channels:get(id) or self._categories:get(id)
 end
 
 --[=[
@@ -251,6 +271,23 @@ function Guild:createVoiceChannel(name)
 	local data, err = self.client._api:createGuildChannel(self._id, {name = name, type = channelType.voice})
 	if data then
 		return self._voice_channels:_insert(data)
+	else
+		return nil, err
+	end
+end
+
+--[=[
+@m createForumChannel
+@t http
+@p name string
+@r GuildForumChannel
+@d Creates a new forum channel in this guild. The name must be between 2 and 100
+characters in length.
+]=]
+function Guild:createForumChannel(name)
+	local data, err = self.client._api:createGuildChannel(self._id, {name = name, type = channelType.forum})
+	if data then
+		return self._forum_channels:_insert(data)
 	else
 		return nil, err
 	end
@@ -948,9 +985,19 @@ function get.textChannels(self)
 	return self._text_channels
 end
 
+--[=[@p forumChannels Cache An iterable cache of all forum channels that exist in this guild.]=]
+function get.forumChannels(self)
+	return self._forum_channels
+end
+
 --[=[@p voiceChannels Cache An iterable cache of all voice channels that exist in this guild.]=]
 function get.voiceChannels(self)
 	return self._voice_channels
+end
+
+--[=[@p threadChannels Cache An iterable cache of all active thread channels that exist in this guild.]=]
+function get.threadChannels(self)
+	return self._thread_channels
 end
 
 --[=[@p categories Cache An iterable cache of all channel categories that exist in this guild.]=]
