@@ -1,5 +1,5 @@
 --[=[
-@c GuildForumChannel x GuildChannel x TextChannel
+@c GuildForumChannel x GuildChannel
 @d Represents a forum channel in a Discord guild, where guild members
 can send and receive posts (threads).
 ]=]
@@ -7,24 +7,21 @@ can send and receive posts (threads).
 local json = require('json')
 
 local GuildChannel = require('containers/abstract/GuildChannel')
-local TextChannel = require('containers/abstract/TextChannel')
 local FilteredIterable = require('iterables/FilteredIterable')
 local ForumTag = require('containers/ForumTag')
 local Cache = require('iterables/Cache')
 local Resolver = require('client/Resolver')
 
-local GuildForumChannel, get = require('class')('GuildForumChannel', GuildChannel, TextChannel)
+local GuildForumChannel, get = require('class')('GuildForumChannel', GuildChannel)
 
 function GuildForumChannel:__init(data, parent)
 	GuildChannel.__init(self, data, parent)
-	TextChannel.__init(self, data, parent)
 	self._available_tags = Cache({}, ForumTag, self)
 	return self:_loadMore(data)
 end
 
 function GuildForumChannel:_load(data)
 	GuildChannel._load(self, data)
-	TextChannel._load(self, data)
 	return self:_loadMore(data)
 end
 
