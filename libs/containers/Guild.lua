@@ -21,10 +21,15 @@ local Snowflake = require('containers/abstract/Snowflake')
 
 local json = require('json')
 local enums = require('enums')
+local fs = require('fs')
+local pathjoin = require('pathjoin')
 
+local splitPath = pathjoin.splitPath
+local readFileSync = fs.readFileSync
 local channelType = assert(enums.channelType)
 local floor = math.floor
 local format = string.format
+local remove = table.remove
 
 local Guild, get = require('class')('Guild', Snowflake)
 
@@ -322,8 +327,16 @@ must be between 2 and 100 characters, and the tags must be between 2 and 200 cha
 be a PNG, APNG, or LOTTIE file, and must be under 500kb and 320x320 pixels.
 ]=]
 function Guild:createSticker(name, description, tags, file)
-	file = Resolver.base64(file)
-	local data, err = self.client._api:createGuildSticker(self._id, {name = name, description = description, tags = tags, file = file})
+	if type(file) == 'string' then
+		local data, err = readFileSync(file)
+		if not data then
+			return nil, err
+		end
+		file = {remove(splitPath(file)), data}
+	elseif type(file) ~= 'table' or type(file[1]) ~= 'string' or type(file[2]) ~= 'string' then
+		return nil, 'Invalid file object: ' .. tostring(file)
+	end
+	local data, err = self.client._api:createGuildSticker(self._id, {name = name, description = description, tags = tags}, file)
 	if data then
 		return self._stickers:_insert(data)
 	else
