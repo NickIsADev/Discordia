@@ -4,17 +4,12 @@
 specific guild's context.
 ]=]
 
-local enums = require('enums')
-local constants = require('constants')
-local ArrayIterable = require('iterables/ArrayIterable')
-local FilteredIterable = require('iterables/FilteredIterable')
 local Snowflake = require('containers/abstract/Snowflake')
-local Resolver = require('client/Resolver')
+local FilteredIterable = require('iterables/FilteredIterable')
+local constants = require('constants')
 
 local format = string.format
 local DEFAULT_AVATARS = constants.DEFAULT_AVATARS
-local userFlag = assert(enums.userFlag)
-local band, bor, bnot = bit.band, bit.bor, bit.bnot
 
 local User, get = require('class')('User', Snowflake)
 
@@ -115,32 +110,6 @@ function User:sendf(content, ...)
 	else
 		return nil, err
 	end
-end
-
---[=[
-@m hasFlag
-@t mem
-@p flag User-Flag-Resolvable
-@r boolean
-@d Indicates whether the user has a particular flag set.
-]=]
-function User:hasFlag(flag)
-	flag = Resolver.userFlag(flag)
-	return band(self._public_flags or 0, flag) > 0
-end
-
---[=[@p flags table A table containing all of the flags (badges) that a user has, represented by the flag's name.]=]
-function get.flags(self)
-	local flags = {}
-	local raw = self._public_flags
-
-	for i, v in pairs(enums.userFlag) do
-		if band(raw, v) == v then
-			insert(flags, i)
-		end
-	end
-
-	return flags
 end
 
 --[=[@p bot boolean Whether this user is a bot.]=]
